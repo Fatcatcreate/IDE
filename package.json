@@ -15,7 +15,7 @@
     "ide",
     "monaco-editor"
   ],
-  "author": "Your Name",
+  "author": "Fatcatcreate",
   "license": "MIT",
   "devDependencies": {
     "electron": "^27.3.11",
@@ -26,7 +26,6 @@
     "monaco-editor": "^0.44.0"
   },
   "build": {
-    "appId": "com.yourcompany.python-ide",
     "productName": "Python IDE",
     "directories": {
       "output": "dist"

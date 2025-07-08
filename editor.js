@@ -1,110 +1,74 @@
+// Monaco Editor Setup
 let editor;
 let currentFilePath = null;
-let isFileModified = false;
+let isContentModified = false;
 
+// Initialize Monaco Editor
 function initializeEditor() {
-    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
-    
-    require(['vs/editor/editor.main'], function () {
-        // Configure Monaco Editor
-        monaco.editor.defineTheme('pythonIdeTheme', {
-            base: 'vs-dark',
-            inherit: true,
-            rules: [
-                { token: 'comment', foreground: '6A9955' },
-                { token: 'keyword', foreground: '569CD6' },
-                { token: 'string', foreground: 'CE9178' },
-                { token: 'number', foreground: 'B5CEA8' },
-                { token: 'operator', foreground: 'D4D4D4' },
-                { token: 'identifier', foreground: '9CDCFE' },
-                { token: 'type', foreground: '4EC9B0' },
-            ],
-            colors: {
-                'editor.background': '#1E1E1E',
-                'editor.foreground': '#D4D4D4',
-                'editor.lineHighlightBackground': '#2D2D30',
-                'editor.selectionBackground': '#264F78',
-                'editor.inactiveSelectionBackground': '#3A3D41',
-                'editorCursor.foreground': '#AEAFAD',
-                'editorWhitespace.foreground': '#404040',
-                'editorLineNumber.foreground': '#858585',
-                'editorLineNumber.activeForeground': '#C6C6C6',
-                'editorIndentGuide.background': '#404040',
-                'editorIndentGuide.activeBackground': '#707070',
-                'editorRuler.foreground': '#5A5A5A',
-                'editorBracketMatch.background': '#0064001a',
-                'editorBracketMatch.border': '#888888',
-                'editorOverviewRuler.background': '#25252580',
-                'editorOverviewRuler.border': '#7f7f7f4d',
-                'editorGutter.background': '#1E1E1E',
-                'editorError.foreground': '#F44747',
-                'editorWarning.foreground': '#FF8C00',
-                'editorInfo.foreground': '#75BEFF',
-                'editorHint.foreground': '#EEEEEEB3'
-            }
-        });
+    // Load Monaco Editor from CDN
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.js';
+    script.onload = () => {
+        setupMonaco();
+    };
+    document.head.appendChild(script);
+}
 
+function setupMonaco() {
+    require.config({ 
+        paths: { 
+            vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' 
+        } 
+    });
+    
+    require(['vs/editor/editor.main'], function() {
         // Create the editor
         editor = monaco.editor.create(document.getElementById('editor'), {
             value: `# Welcome to Python IDE
 # Write your Python code here
 
-def hello_world():
+def main():
     print("Hello, World!")
-    return "Success"
+    
+    # Example: Variables and data types
+    name = "Python"
+    version = 3.11
+    is_awesome = True
+    
+    print(f"Language: {name}")
+    print(f"Version: {version}")
+    print(f"Is awesome? {is_awesome}")
+    
+    # Example: Lists and loops
+    fruits = ["apple", "banana", "orange"]
+    for fruit in fruits:
+        print(f"I like {fruit}")
 
 if __name__ == "__main__":
-    result = hello_world()
-    print(f"Function returned: {result}")
+    main()
 `,
             language: 'python',
-            theme: 'pythonIdeTheme',
-            automaticLayout: true,
+            theme: 'vs-dark',
             fontSize: 14,
-            lineNumbers: 'on',
-            roundedSelection: false,
+            minimap: { enabled: true },
             scrollBeyondLastLine: false,
-            readOnly: false,
-            minimap: {
-                enabled: true
-            },
+            automaticLayout: true,
             wordWrap: 'on',
-            tabSize: 4,
-            insertSpaces: true,
-            detectIndentation: true,
-            folding: true,
-            foldingStrategy: 'indentation',
-            showFoldingControls: 'always',
-            bracketMatching: 'always',
-            autoClosingBrackets: 'always',
-            autoClosingQuotes: 'always',
-            autoIndent: 'advanced',
-            formatOnPaste: true,
-            formatOnType: true,
-            renderLineHighlight: 'all',
-            renderWhitespace: 'selection',
-            rulers: [80, 120],
-            cursorBlinking: 'blink',
-            cursorSmoothCaretAnimation: true,
+            lineNumbers: 'on',
+            renderWhitespace: 'boundary',
+            cursorBlinking: 'smooth',
             smoothScrolling: true,
-            mouseWheelScrollSensitivity: 1,
-            fastScrollSensitivity: 5,
-            scrollbar: {
-                useShadows: false,
-                verticalHasArrows: false,
-                horizontalHasArrows: false,
-                vertical: 'visible',
-                horizontal: 'visible',
-                verticalScrollbarSize: 10,
-                horizontalScrollbarSize: 10
-            }
+            mouseWheelZoom: true
         });
-
-        // Add event listeners
+        
+        // Setup editor event listeners
         setupEditorEventListeners();
         
-        // Update cursor position
-        updateCursorPosition();
+        // Setup keyboard shortcuts
+        setupKeyboardShortcuts();
+        
+        // Expose editor API to global scope
+        exposeEditorAPI();
         
         console.log('Monaco Editor initialized successfully');
     });
@@ -113,179 +77,267 @@ if __name__ == "__main__":
 function setupEditorEventListeners() {
     // Track content changes
     editor.onDidChangeModelContent(() => {
-        isFileModified = true;
-        updateFileStatus();
+        isContentModified = true;
+        updateTitle();
     });
-
-    // Track cursor position changes
-    editor.onDidChangeCursorPosition(() => {
-        updateCursorPosition();
+    
+    // Handle cursor position changes
+    editor.onDidChangeCursorPosition((e) => {
+        updateCursorPosition(e.position);
     });
+    
+    // Handle selection changes
+    editor.onDidChangeCursorSelection((e) => {
+        updateSelectionInfo(e.selection);
+    });
+}
 
-    // Add keyboard shortcuts
+function setupKeyboardShortcuts() {
+    // Add custom keyboard shortcuts
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-        saveFile();
-    });
-
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR, () => {
-        runCode();
-    });
-
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyL, () => {
-        lintCode();
-    });
-
-    // Add context menu actions
-    editor.addAction({
-        id: 'run-selection',
-        label: 'Run Selection',
-        contextMenuGroupId: 'execution',
-        contextMenuOrder: 1.5,
-        run: function(ed) {
-            const selection = ed.getSelection();
-            const selectedText = ed.getModel().getValueInRange(selection);
-            if (selectedText.trim()) {
-                runCode(selectedText);
-            }
+        if (window.rendererAPI) {
+            window.rendererAPI.saveFile();
         }
     });
-
-    editor.addAction({
-        id: 'comment-line',
-        label: 'Comment Line',
-        keybindings: [
-            monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash
-        ],
-        contextMenuGroupId: 'modification',
-        contextMenuOrder: 1.5,
-        run: function(ed) {
-            const selection = ed.getSelection();
-            const lineNumber = selection.startLineNumber;
-            const line = ed.getModel().getLineContent(lineNumber);
-            
-            if (line.trimStart().startsWith('#')) {
-                // Remove comment
-                const newLine = line.replace(/^\s*#\s?/, '');
-                ed.executeEdits('', [{
-                    range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-                    text: newLine
-                }]);
-            } else {
-                // Add comment
-                const leadingSpaces = line.match(/^\s*/)[0];
-                const newLine = leadingSpaces + '# ' + line.trimStart();
-                ed.executeEdits('', [{
-                    range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-                    text: newLine
-                }]);
-            }
+    
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyN, () => {
+        if (window.rendererAPI) {
+            window.rendererAPI.newFile();
+        }
+    });
+    
+    editor.addCommand(monaco.KeyCode.F5, () => {
+        if (window.rendererAPI) {
+            window.rendererAPI.runCode();
+        }
+    });
+    
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyL, () => {
+        if (window.rendererAPI) {
+            window.rendererAPI.lintCode();
         }
     });
 }
 
-function updateCursorPosition() {
-    const position = editor.getPosition();
-    const cursorElement = document.getElementById('cursor-position');
-    if (cursorElement && position) {
-        cursorElement.textContent = `Ln ${position.lineNumber}, Col ${position.column}`;
+function exposeEditorAPI() {
+    // Expose editor functions to global scope
+    window.editorAPI = {
+        getContent: () => editor.getValue(),
+        setContent: (content) => {
+            editor.setValue(content);
+            isContentModified = false;
+            updateTitle();
+        },
+        getCurrentPath: () => currentFilePath,
+        setCurrentPath: (path) => {
+            currentFilePath = path;
+            updateTitle();
+        },
+        isModified: () => isContentModified,
+        markAsSaved: () => {
+            isContentModified = false;
+            updateTitle();
+        },
+        focus: () => editor.focus(),
+        setTheme: (theme) => {
+            const monacoTheme = theme === 'dark' ? 'vs-dark' : 'vs';
+            monaco.editor.setTheme(monacoTheme);
+        },
+        insertText: (text) => {
+            const position = editor.getPosition();
+            editor.executeEdits('', [{
+                range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                text: text
+            }]);
+        },
+        getSelectedText: () => {
+            const selection = editor.getSelection();
+            return editor.getModel().getValueInRange(selection);
+        },
+        replaceSelection: (text) => {
+            const selection = editor.getSelection();
+            editor.executeEdits('', [{
+                range: selection,
+                text: text
+            }]);
+        },
+        gotoLine: (lineNumber) => {
+            editor.setPosition({ lineNumber: lineNumber, column: 1 });
+            editor.revealLine(lineNumber);
+        },
+        find: (text) => {
+            editor.getAction('actions.find').run();
+        },
+        replace: () => {
+            editor.getAction('editor.action.startFindReplaceAction').run();
+        },
+        formatDocument: () => {
+            editor.getAction('editor.action.formatDocument').run();
+        },
+        toggleComment: () => {
+            editor.getAction('editor.action.commentLine').run();
+        },
+        undo: () => {
+            editor.getAction('undo').run();
+        },
+        redo: () => {
+            editor.getAction('redo').run();
+        },
+        selectAll: () => {
+            editor.getAction('editor.action.selectAll').run();
+        }
+    };
+}
+
+function updateTitle() {
+    const filename = currentFilePath ? 
+        currentFilePath.split('/').pop().split('\\').pop() : 
+        'Untitled';
+    const modified = isContentModified ? ' •' : '';
+    document.title = `${filename}${modified} - Python IDE`;
+    
+    // Update status bar if it exists
+    updateFileStatus();
+}
+
+function updateCursorPosition(position) {
+    const statusLine = document.getElementById('status-line');
+    const statusColumn = document.getElementById('status-column');
+    
+    if (statusLine && statusColumn) {
+        statusLine.textContent = position.lineNumber;
+        statusColumn.textContent = position.column;
+    }
+}
+
+function updateSelectionInfo(selection) {
+    const statusSelection = document.getElementById('status-selection');
+    
+    if (statusSelection) {
+        if (selection.isEmpty()) {
+            statusSelection.textContent = '';
+        } else {
+            const selectedText = editor.getModel().getValueInRange(selection);
+            const lines = selectedText.split('\n').length;
+            const chars = selectedText.length;
+            statusSelection.textContent = `(${lines} lines, ${chars} chars selected)`;
+        }
     }
 }
 
 function updateFileStatus() {
-    const fileElement = document.getElementById('current-file');
-    if (fileElement) {
-        const fileName = currentFilePath ? currentFilePath.split('/').pop() : 'untitled.py';
-        fileElement.textContent = fileName + (isFileModified ? ' •' : '');
+    const statusFile = document.getElementById('status-file');
+    if (statusFile) {
+        const filename = currentFilePath ? 
+            currentFilePath.split('/').pop().split('\\').pop() : 
+            'Untitled';
+        const modified = isContentModified ? ' •' : '';
+        statusFile.textContent = `${filename}${modified}`;
     }
 }
 
-function getEditorContent() {
-    return editor ? editor.getValue() : '';
+// Auto-save functionality
+function startAutoSave() {
+    setInterval(() => {
+        if (isContentModified && currentFilePath && window.electronAPI) {
+            window.electronAPI.saveFile(currentFilePath, editor.getValue())
+                .then(result => {
+                    if (result.success) {
+                        isContentModified = false;
+                        updateTitle();
+                        console.log('Auto-saved');
+                    }
+                })
+                .catch(error => {
+                    console.error('Auto-save failed:', error);
+                });
+        }
+    }, 30000); // Auto-save every 30 seconds
 }
 
-function setEditorContent(content) {
-    if (editor) {
-        editor.setValue(content);
-        isFileModified = false;
-        updateFileStatus();
-    }
-}
-
-function setCurrentFilePath(path) {
-    currentFilePath = path;
-    isFileModified = false;
-    updateFileStatus();
-}
-
-function getCurrentFilePath() {
-    return currentFilePath;
-}
-
-function isModified() {
-    return isFileModified;
-}
-
-function markAsSaved() {
-    isFileModified = false;
-    updateFileStatus();
-}
-
-function focusEditor() {
-    if (editor) {
-        editor.focus();
-    }
-}
-
-function insertText(text) {
-    if (editor) {
-        const selection = editor.getSelection();
-        const range = new monaco.Range(
-            selection.startLineNumber,
-            selection.startColumn,
-            selection.endLineNumber,
-            selection.endColumn
-        );
-        editor.executeEdits('', [{ range: range, text: text }]);
-    }
-}
-
-function goToLine(lineNumber) {
-    if (editor) {
-        editor.setPosition({ lineNumber: lineNumber, column: 1 });
-        editor.revealLineInCenter(lineNumber);
-        editor.focus();
-    }
-}
-
-function highlightLine(lineNumber, type = 'error') {
-    if (editor) {
-        const decorations = editor.deltaDecorations([], [
-            {
-                range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-                options: {
-                    isWholeLine: true,
-                    className: type === 'error' ? 'editor-line-error' : 'editor-line-warning',
-                    glyphMarginClassName: type === 'error' ? 'editor-glyph-error' : 'editor-glyph-warning'
+// Language features
+function setupLanguageFeatures() {
+    // Add Python snippets
+    monaco.languages.registerCompletionItemProvider('python', {
+        provideCompletionItems: (model, position) => {
+            const suggestions = [
+                {
+                    label: 'def',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'def ${1:function_name}(${2:parameters}):\n    ${3:pass}',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Function definition'
+                },
+                {
+                    label: 'class',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'class ${1:ClassName}:\n    def __init__(self${2:, parameters}):\n        ${3:pass}',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Class definition'
+                },
+                {
+                    label: 'if',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'if ${1:condition}:\n    ${2:pass}',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'If statement'
+                },
+                {
+                    label: 'for',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'for ${1:item} in ${2:iterable}:\n    ${3:pass}',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'For loop'
+                },
+                {
+                    label: 'while',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'while ${1:condition}:\n    ${2:pass}',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'While loop'
+                },
+                {
+                    label: 'try',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'try:\n    ${1:pass}\nexcept ${2:Exception} as ${3:e}:\n    ${4:pass}',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Try-except block'
+                },
+                {
+                    label: 'main',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'if __name__ == "__main__":\n    ${1:main()}',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Main guard'
                 }
-            }
-        ]);
-        
-        // Clear decoration after 3 seconds
-        setTimeout(() => {
-            if (editor) {
-                editor.deltaDecorations(decorations, []);
-            }
-        }, 3000);
-    }
+            ];
+            
+            return { suggestions: suggestions };
+        }
+    });
 }
 
-function clearDecorations() {
-    if (editor) {
-        editor.deltaDecorations(editor.getModel().getAllDecorations(), []);
-    }
-}
-
-// Initialize editor when DOM is loaded
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     initializeEditor();
+    
+    // Start auto-save after a delay
+    setTimeout(() => {
+        startAutoSave();
+        setupLanguageFeatures();
+    }, 2000);
 });
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    if (editor) {
+        editor.layout();
+    }
+});
+
+// Export for global access
+window.editorModule = {
+    initializeEditor,
+    setupLanguageFeatures,
+    startAutoSave
+};

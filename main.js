@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
+const { spawn } = require('child_process');
 
 let mainWindow;
 
@@ -139,7 +140,7 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// IPC handlers
+// IPC handlers for file operations
 ipcMain.handle('save-file', async (event, { path, content }) => {
   try {
     await fs.writeFile(path, content, 'utf-8');
@@ -199,6 +200,183 @@ ipcMain.handle('select-folder', async () => {
     return { success: true, path: result.filePaths[0] };
   }
   return { success: false };
+});
+
+// IPC handler for Python execution
+ipcMain.handle('run-python', async (event, { code, path: filePath }) => {
+  return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    
+    // Create a temporary file if no file path is provided
+    let tempFile = null;
+    let actualFilePath = filePath;
+    
+    if (!filePath) {
+      tempFile = path.join(__dirname, 'temp_script.py');
+      actualFilePath = tempFile;
+    }
+    
+    // Write code to file
+    fs.writeFile(actualFilePath, code, 'utf-8', (writeErr) => {
+      if (writeErr) {
+        resolve({ success: false, error: writeErr.message, exitCode: 1 });
+        return;
+      }
+      
+      // Execute Python script
+      const pythonProcess = spawn('python3', [actualFilePath], {
+        cwd: filePath ? path.dirname(filePath) : __dirname
+      });
+      
+      pythonProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      pythonProcess.on('close', (code) => {
+        // Clean up temp file
+        if (tempFile) {
+          fs.unlink(tempFile, () => {}); // Ignore errors
+        }
+        
+        resolve({
+          success: true,
+          stdout: stdout,
+          stderr: stderr,
+          exitCode: code
+        });
+      });
+      
+      pythonProcess.on('error', (error) => {
+        // Clean up temp file
+        if (tempFile) {
+          fs.unlink(tempFile, () => {}); // Ignore errors
+        }
+        
+        resolve({
+          success: false,
+          error: error.message,
+          exitCode: 1
+        });
+      });
+    });
+  });
+});
+
+// IPC handler for Python linting
+ipcMain.handle('lint-python', async (event, { code, path: filePath }) => {
+  return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    
+    // Create a temporary file if no file path is provided
+    let tempFile = null;
+    let actualFilePath = filePath;
+    
+    if (!filePath) {
+      tempFile = path.join(__dirname, 'temp_lint.py');
+      actualFilePath = tempFile;
+    }
+    
+    // Write code to file
+    fs.writeFile(actualFilePath, code, 'utf-8', (writeErr) => {
+      if (writeErr) {
+        resolve({ success: false, error: writeErr.message });
+        return;
+      }
+      
+      // Try to use pylint first, fallback to pyflakes
+      const lintProcess = spawn('python3', ['-m', 'pylint', '--output-format=json', actualFilePath], {
+        cwd: filePath ? path.dirname(filePath) : __dirname
+      });
+      
+      lintProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      lintProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      lintProcess.on('close', (code) => {
+        // Clean up temp file
+        if (tempFile) {
+          fs.unlink(tempFile, () => {}); // Ignore errors
+        }
+        
+        try {
+          const issues = [];
+          if (stdout.trim()) {
+            const lintResults = JSON.parse(stdout);
+            lintResults.forEach(issue => {
+              issues.push({
+                type: issue.type,
+                line: issue.line,
+                column: issue.column,
+                message: issue.message,
+                severity: issue.type === 'error' ? 'error' : 'warning'
+              });
+            });
+          }
+          
+          resolve({
+            success: true,
+            issues: issues
+          });
+        } catch (parseError) {
+          // If pylint fails, try basic syntax check
+          const syntaxProcess = spawn('python3', ['-m', 'py_compile', actualFilePath]);
+          
+          syntaxProcess.on('close', (syntaxCode) => {
+            if (syntaxCode === 0) {
+              resolve({
+                success: true,
+                issues: []
+              });
+            } else {
+              resolve({
+                success: true,
+                issues: [{
+                  type: 'syntax',
+                  line: 1,
+                  column: 1,
+                  message: 'Syntax error detected',
+                  severity: 'error'
+                }]
+              });
+            }
+          });
+        }
+      });
+      
+      lintProcess.on('error', (error) => {
+        // Clean up temp file
+        if (tempFile) {
+          fs.unlink(tempFile, () => {}); // Ignore errors
+        }
+        
+        // Fallback to basic syntax check
+        const syntaxProcess = spawn('python3', ['-c', `compile(open('${actualFilePath}').read(), '${actualFilePath}', 'exec')`]);
+        
+        syntaxProcess.on('close', (syntaxCode) => {
+          resolve({
+            success: true,
+            issues: syntaxCode === 0 ? [] : [{
+              type: 'syntax',
+              line: 1,
+              column: 1,
+              message: 'Syntax error detected',
+              severity: 'error'
+            }]
+          });
+        });
+      });
+    });
+  });
 });
 
 // App event handlers

@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     setupMenuEventListeners();
     setupTabSwitching();
+    initializeTheme();
     console.log('Python IDE initialized');
 });
 
@@ -26,15 +27,17 @@ function setupEventListeners() {
 }
 
 function setupMenuEventListeners() {
-    // Menu event listeners from main process
-    window.electronAPI.onNewFile(() => newFile());
-    window.electronAPI.onSaveFile(() => saveFile());
-    window.electronAPI.onSaveAs(() => saveAs());
-    window.electronAPI.onRunCode(() => runCode());
-    window.electronAPI.onLintCode(() => lintCode());
-    window.electronAPI.onFileOpened((event, data) => {
-        openFileFromPath(data.path, data.content);
-    });
+    // Menu event listeners from main process (only if electronAPI exists)
+    if (window.electronAPI) {
+        window.electronAPI.onNewFile(() => newFile());
+        window.electronAPI.onSaveFile(() => saveFile());
+        window.electronAPI.onSaveAs(() => saveAs());
+        window.electronAPI.onRunCode(() => runCode());
+        window.electronAPI.onLintCode(() => lintCode());
+        window.electronAPI.onFileOpened((event, data) => {
+            openFileFromPath(data.path, data.content);
+        });
+    }
 }
 
 function setupTabSwitching() {
@@ -53,10 +56,6 @@ function handleKeyboardShortcuts(event) {
             case 'o':
                 event.preventDefault();
                 // File opening is handled by main process
-                break;
-            case 'F5':
-                event.preventDefault();
-                runCode();
                 break;
         }
     }
@@ -103,6 +102,12 @@ async function saveFile() {
     const currentPath = getCurrentFilePath();
     const content = getEditorContent();
     
+    if (!window.electronAPI) {
+        // Fallback for non-electron environment
+        updateStatus('Save functionality requires Electron environment');
+        return;
+    }
+    
     if (currentPath) {
         // Save to existing file
         const result = await window.electronAPI.saveFile(currentPath, content);
@@ -120,6 +125,13 @@ async function saveFile() {
 
 async function saveAs() {
     const content = getEditorContent();
+    
+    if (!window.electronAPI) {
+        // Fallback for non-electron environment
+        updateStatus('Save functionality requires Electron environment');
+        return;
+    }
+    
     const result = await window.electronAPI.saveFileAs(content);
     
     if (result.success && !result.canceled) {
@@ -132,6 +144,12 @@ async function saveAs() {
 }
 
 async function openFolder() {
+    if (!window.electronAPI) {
+        // Fallback for non-electron environment
+        updateStatus('File system access requires Electron environment');
+        return;
+    }
+    
     const result = await window.electronAPI.selectFolder();
     if (result.success) {
         currentProject = result.path;
@@ -221,12 +239,19 @@ function openFileFromPath(filePath, content) {
 }
 
 // Code execution and linting
-async function runCode() {
-    const code = getEditorContent();
+async function runCode(code = null) {
+    const codeToRun = code || getEditorContent();
     const currentPath = getCurrentFilePath();
     
-    if (!code.trim()) {
+    if (!codeToRun.trim()) {
         updateStatus('No code to run');
+        return;
+    }
+    
+    if (!window.electronAPI) {
+        // Fallback for non-electron environment
+        appendToOutput('Python execution requires Electron environment\n', 'error');
+        updateStatus('Python execution requires Electron environment');
         return;
     }
     
@@ -239,14 +264,14 @@ async function runCode() {
     appendToOutput('Running Python code...\n', 'info');
     
     try {
-        const result = await window.electronAPI.runPython(code, currentPath);
+        const result = await window.electronAPI.runPython(codeToRun, currentPath);
         
         if (result.stdout) {
-            appendToOutput(result.stdout, 'stdout');
+            appendToOutput(result.stdout, 'success');
         }
         
         if (result.stderr) {
-            appendToOutput(result.stderr, 'stderr');
+            appendToOutput(result.stderr, 'error');
         }
         
         if (result.error) {
@@ -271,6 +296,13 @@ async function lintCode() {
     
     if (!code.trim()) {
         updateStatus('No code to lint');
+        return;
+    }
+    
+    if (!window.electronAPI) {
+        // Fallback for non-electron environment
+        appendToProblems('Linting requires Electron environment\n', 'error');
+        updateStatus('Linting requires Electron environment');
         return;
     }
     
@@ -308,50 +340,57 @@ async function lintCode() {
 
 // Output and problems management
 function clearOutput() {
-    const outputElement = document.getElementById('output-content');
-    outputElement.innerHTML = '';
+    const outputElement = document.getElementById('panel-output');
+    if (outputElement) {
+        outputElement.innerHTML = '<div class="output-line info">Output cleared.</div>';
+    }
 }
 
 function clearProblems() {
-    const problemsElement = document.getElementById('problems-content');
-    problemsElement.innerHTML = '';
+    const problemsElement = document.getElementById('panel-problems');
+    if (problemsElement) {
+        problemsElement.innerHTML = '<div class="output-line info">No problems detected.</div>';
+    }
 }
 
-function appendToOutput(text, type = 'stdout') {
-    const outputElement = document.getElementById('output-content');
-    const line = document.createElement('div');
-    line.className = `output-line ${type}`;
-    line.textContent = text;
-    outputElement.appendChild(line);
-    outputElement.scrollTop = outputElement.scrollHeight;
+function appendToOutput(text, type = 'info') {
+    const outputElement = document.getElementById('panel-output');
+    if (outputElement) {
+        const line = document.createElement('div');
+        line.className = `output-line ${type}`;
+        line.textContent = text;
+        outputElement.appendChild(line);
+        outputElement.scrollTop = outputElement.scrollHeight;
+    }
 }
 
 function appendToProblems(text, type = 'info') {
-    const problemsElement = document.getElementById('problems-content');
-    const line = document.createElement('div');
-    line.className = `problem-line ${type}`;
-    line.textContent = text;
-    problemsElement.appendChild(line);
-    problemsElement.scrollTop = problemsElement.scrollHeight;
+    const problemsElement = document.getElementById('panel-problems');
+    if (problemsElement) {
+        const line = document.createElement('div');
+        line.className = `output-line ${type}`;
+        line.textContent = text;
+        problemsElement.appendChild(line);
+        problemsElement.scrollTop = problemsElement.scrollHeight;
+    }
 }
 
 function switchToTab(tabName) {
+    // Hide all panels
+    document.getElementById('panel-output').classList.add('hidden');
+    document.getElementById('panel-problems').classList.add('hidden');
+    
     // Remove active class from all tabs
-    document.querySelectorAll('.tab').forEach(tab => {
+    document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.classList.remove('active');
     });
     
-    // Hide all tab contents
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.style.display = 'none';
-    });
-    
-    // Show selected tab
+    // Show selected panel and activate tab
+    document.getElementById(`panel-${tabName}`).classList.remove('hidden');
     document.getElementById(`tab-${tabName}`).classList.add('active');
-    document.getElementById(`${tabName}-content`).style.display = 'block';
 }
 
-// Editor interface functions (these should be implemented in editor.js)
+// Editor interface functions
 function getEditorContent() {
     return window.editorAPI ? window.editorAPI.getContent() : '';
 }
@@ -446,26 +485,25 @@ function toggleTheme() {
     
     // Update Monaco editor theme if available
     if (window.editorAPI && window.editorAPI.setTheme) {
-        window.editorAPI.setTheme(newTheme === 'dark' ? 'vs-dark' : 'vs-light');
+        window.editorAPI.setTheme(newTheme);
     }
     
-    // Save theme preference
-    localStorage.setItem('theme', newTheme);
+    // Save theme preference (removed localStorage usage)
     updateStatus(`Switched to ${newTheme} theme`);
 }
 
 // Initialize theme on startup
 function initializeTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    document.body.setAttribute('data-theme', savedTheme);
+    const defaultTheme = 'dark';
+    document.body.setAttribute('data-theme', defaultTheme);
     
-    if (window.editorAPI && window.editorAPI.setTheme) {
-        window.editorAPI.setTheme(savedTheme === 'dark' ? 'vs-dark' : 'vs-light');
-    }
+    // Set editor theme after it's initialized
+    setTimeout(() => {
+        if (window.editorAPI && window.editorAPI.setTheme) {
+            window.editorAPI.setTheme(defaultTheme);
+        }
+    }, 1000);
 }
-
-// Call theme initialization when DOM is loaded
-document.addEventListener('DOMContentLoaded', initializeTheme);
 
 // Export functions for use in other modules
 window.rendererAPI = {
