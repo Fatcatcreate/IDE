@@ -74,7 +74,7 @@ function createMenu() {
         },
         {
           label: 'Save As',
-          accelerator: 'CmdOrCtrl+Shift+S',
+          accelerator: 'CmdOrCtrl+Shift+E',
           click: () => {
             mainWindow.webContents.send('menu-save-as');
           }
@@ -106,7 +106,7 @@ function createMenu() {
       submenu: [
         {
           label: 'Run Python Code',
-          accelerator: 'CmdOrCtrl+R',
+          accelerator: 'CmdOrCtrl+Enter',
           click: () => {
             mainWindow.webContents.send('menu-run-code');
           }
@@ -153,7 +153,7 @@ ipcMain.handle('save-file', async (event, { path, content }) => {
 ipcMain.handle('save-file-as', async (event, content) => {
   const result = await dialog.showSaveDialog(mainWindow, {
     filters: [
-      { name: 'Python Files', extensions: ['py'] },
+      //{ name: 'Python Files', extensions: ['py'] },
       { name: 'All Files', extensions: ['*'] }
     ]
   });
