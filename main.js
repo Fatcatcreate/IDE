@@ -144,6 +144,11 @@ function createMenu() {
 ipcMain.handle('save-file', async (event, { path, content }) => {
   try {
     await fs.writeFile(path, content, 'utf-8');
+    
+    // Notify renderer that file was saved - send the directory path
+    const dirPath = require('path').dirname(path);
+    mainWindow.webContents.send('file-saved', { filePath: path, dirPath });
+    
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -161,6 +166,11 @@ ipcMain.handle('save-file-as', async (event, content) => {
   if (!result.canceled) {
     try {
       await fs.writeFile(result.filePath, content, 'utf-8');
+      
+      // Notify renderer that file was saved - send the directory path
+      const dirPath = require('path').dirname(result.filePath);
+      mainWindow.webContents.send('file-saved', { filePath: result.filePath, dirPath });
+      
       return { success: true, path: result.filePath };
     } catch (error) {
       return { success: false, error: error.message };
@@ -378,6 +388,7 @@ ipcMain.handle('lint-python', async (event, { code, path: filePath }) => {
     });
   });
 });
+
 
 // App event handlers
 app.whenReady().then(createWindow);

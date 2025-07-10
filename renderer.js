@@ -1,5 +1,8 @@
 let currentProject = null;
 let fileExplorerData = [];
+// Add these variables at the top of renderer.js
+let contextMenu = null;
+let contextMenuTarget = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -37,6 +40,28 @@ function setupMenuEventListeners() {
         window.electronAPI.onFileOpened((event, data) => {
             openFileFromPath(data.path, data.content);
         });
+        
+        // ADD THIS NEW LISTENER FOR FILE SAVED EVENT
+        window.electronAPI.onFileSaved((event, data) => {
+            handleFileSaved(data.filePath, data.dirPath);
+        });
+    }
+}
+
+// ADD THIS NEW FUNCTION to handle file saved event
+async function handleFileSaved(filePath, dirPath) {
+    // Only refresh if the saved file is in the current project directory
+    if (currentProject && dirPath.startsWith(currentProject)) {
+        // Refresh the file explorer to show the new/updated file
+        await refreshFileExplorer();
+        updateStatus(`File saved: ${require('path').basename(filePath)}`);
+    }
+}
+
+// ADD THIS NEW FUNCTION to refresh the file explorer
+async function refreshFileExplorer() {
+    if (currentProject) {
+        await loadFileExplorer(currentProject);
     }
 }
 
@@ -114,6 +139,7 @@ async function saveFile() {
         if (result.success) {
             markAsSaved();
             updateStatus('File saved successfully');
+            // File explorer will be refreshed via the 'file-saved' event from main process
         } else {
             updateStatus('Failed to save file: ' + result.error);
         }
@@ -138,11 +164,11 @@ async function saveAs() {
         setCurrentFilePath(result.path);
         markAsSaved();
         updateStatus('File saved successfully');
+        // File explorer will be refreshed via the 'file-saved' event from main process
     } else if (result.error) {
         updateStatus('Failed to save file: ' + result.error);
     }
 }
-
 async function openFolder() {
     if (!window.electronAPI) {
         // Fallback for non-electron environment

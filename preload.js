@@ -1,6 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+
+  onFileSaved: (callback) => {
+        ipcRenderer.on('file-saved', callback);
+    },
+    
   // File operations
   saveFile: (path, content) => ipcRenderer.invoke('save-file', { path, content }),
   saveFileAs: (content) => ipcRenderer.invoke('save-file-as', content),
