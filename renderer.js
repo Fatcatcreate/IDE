@@ -110,7 +110,7 @@ function newFile() {
     
     setEditorContent(`# New Python file
 # Write your code here
-# When you save this you can save this as any filke type you want by chnaging the file extension on Save As
+# When you save this you can save this as any file type you want by changing the file extension on Save As
 # For example, you can save this as a .py file 
 
 def main():
