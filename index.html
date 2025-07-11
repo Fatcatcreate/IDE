@@ -78,6 +78,63 @@
             background-color: #2a2d2e;
         }
 
+        .file-item-menu-btn {
+            background: none;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            margin-left: auto;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.1s ease-in-out;
+        }
+
+        .file-item:hover .file-item-menu-btn {
+            opacity: 1; /* Show on hover */
+        }
+
+        .file-item-menu-btn:hover {
+            background-color: #3c3c3c;
+        }
+
+        .context-menu {
+            position: absolute;
+            background-color: #2d2d30;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            padding: 4px;
+            z-index: 1000;
+            display: none; /* Hidden by default */
+        }
+
+        .context-menu-item {
+            background: none;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            padding: 6px 12px;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border-radius: 3px;
+        }
+
+        .context-menu-item:hover {
+            background-color: #0e639c;
+            color: #ffffff;
+        }
+
+        .context-menu-item.delete {
+            color: #f85149;
+        }
+
+        .context-menu-item.delete:hover {
+            background-color: #d73a49;
+            color: #ffffff;
+        }
+
         .file-item.selected {
             background-color: #0e639c;
         }
@@ -295,6 +352,9 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <h3>Explorer</h3>
+                <button id="back-button" title="Go Back" style="display: none;">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
                 <button id="open-folder" title="Open Folder">
                     <i class="fas fa-folder-open"></i>
                 </button>
@@ -358,6 +418,11 @@
     <div class="status-bar">
         <span id="status-text">Ready</span>
         <span id="cursor-position">Ln 1, Col 1</span>
+    </div>
+
+    <div id="context-menu" class="context-menu">
+        <button class="context-menu-item" id="rename-file-btn">Rename</button>
+        <button class="context-menu-item delete" id="delete-file-btn">Delete</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>

@@ -212,6 +212,25 @@ ipcMain.handle('select-folder', async () => {
   return { success: false };
 });
 
+ipcMain.handle('rename-file', async (event, { oldPath, newName }) => {
+  const newPath = path.join(path.dirname(oldPath), newName);
+  try {
+    await fs.rename(oldPath, newPath);
+    return { success: true, newPath };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-file', async (event, filePath) => {
+  try {
+    await fs.remove(filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});''
+
 // IPC handler for Python execution
 ipcMain.handle('run-python', async (event, { code, path: filePath }) => {
   return new Promise((resolve) => {

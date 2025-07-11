@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readDirectory: (path) => ipcRenderer.invoke('read-directory', path),
   readFile: (path) => ipcRenderer.invoke('read-file', path),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
+  renameFile: (oldPath, newName) => ipcRenderer.invoke('rename-file', { oldPath, newName }),
+  deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
+  
   
   // Python operations
   runPython: (code, path) => ipcRenderer.invoke('run-python', { code, path }),

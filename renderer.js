@@ -1,4 +1,5 @@
 let currentProject = null;
+let currentExplorerPath = null;
 let fileExplorerData = [];
 // Add these variables at the top of renderer.js
 let contextMenu = null;
@@ -6,11 +7,17 @@ let contextMenuTarget = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    contextMenu = document.getElementById('context-menu');
     setupEventListeners();
     setupMenuEventListeners();
     setupTabSwitching();
     initializeTheme();
     console.log('Python IDE initialized');
+
+    // Hide context menu on click outside
+    window.addEventListener('click', () => {
+        hideContextMenu();
+    });
 });
 
 function setupEventListeners() {
@@ -21,6 +28,7 @@ function setupEventListeners() {
     document.getElementById('lint-code').addEventListener('click', () => lintCode());
     document.getElementById('clear-output').addEventListener('click', clearOutput);
     document.getElementById('open-folder').addEventListener('click', openFolder);
+    document.getElementById('back-button').addEventListener('click', goBack);
     
     // Keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -54,7 +62,7 @@ async function handleFileSaved(filePath, dirPath) {
     if (currentProject && dirPath.startsWith(currentProject)) {
         // Refresh the file explorer to show the new/updated file
         await refreshFileExplorer();
-        updateStatus(`File saved: ${require('path').basename(filePath)}`);
+        updateStatus(`File saved: ${getBasename(filePath)}`);
     }
 }
 
@@ -187,6 +195,14 @@ async function openFolder() {
 }
 
 async function loadFileExplorer(folderPath) {
+    currentExplorerPath = folderPath;
+    const backButton = document.getElementById('back-button');
+    if (folderPath !== currentProject) {
+        backButton.style.display = 'inline-block';
+    } else {
+        backButton.style.display = 'none';
+    }
+
     const explorerElement = document.getElementById('file-explorer');
     explorerElement.innerHTML = '<div class="file-item"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
     
@@ -202,40 +218,154 @@ async function loadFileExplorer(folderPath) {
 function renderFileExplorer(items) {
     const explorerElement = document.getElementById('file-explorer');
     explorerElement.innerHTML = '';
-    
+
     if (items.length === 0) {
         explorerElement.innerHTML = '<div class="file-item"><i class="fas fa-folder-open"></i> Empty folder</div>';
         return;
     }
-    
+
     // Sort items: directories first, then files
     const sortedItems = items.sort((a, b) => {
         if (a.isDirectory && !b.isDirectory) return -1;
         if (!a.isDirectory && b.isDirectory) return 1;
         return a.name.localeCompare(b.name);
     });
-    
+
     sortedItems.forEach(item => {
         const div = document.createElement('div');
         div.className = 'file-item';
-        
+        div.setAttribute('data-path', item.path);
+
+        const iconClass = item.isDirectory ? 'fas fa-folder' : (item.name.endsWith('.py') ? 'fab fa-python' : 'fas fa-file');
+        const icon = `<i class="${iconClass}"></i>`;
+        const name = `<span>${item.name}</span>`;
+        const menuBtn = `<button class="file-item-menu-btn"><i class="fas fa-ellipsis-v"></i></button>`;
+
+        div.innerHTML = `${icon} ${name} ${menuBtn}`;
+
         if (item.isDirectory) {
             div.classList.add('folder');
-            div.innerHTML = `<i class="fas fa-folder"></i> ${item.name}`;
             div.addEventListener('click', () => loadFileExplorer(item.path));
         } else {
-            const isPython = item.name.endsWith('.py');
-            if (isPython) {
+            if (item.name.endsWith('.py')) {
                 div.classList.add('python');
             }
-            
-            const icon = isPython ? 'fab fa-python' : 'fas fa-file';
-            div.innerHTML = `<i class="${icon}"></i> ${item.name}`;
             div.addEventListener('click', () => openFileFromExplorer(item.path));
         }
-        
+
+        div.querySelector('.file-item-menu-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            showContextMenu(e.target, item.path);
+        });
+
         explorerElement.appendChild(div);
     });
+}
+
+function showContextMenu(target, filePath) {
+    contextMenuTarget = filePath;
+    const rect = target.getBoundingClientRect();
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = `${rect.right}px`;
+    contextMenu.style.top = `${rect.top}px`;
+
+    document.getElementById('rename-file-btn').onclick = () => {
+        hideContextMenu();
+        renameFile(contextMenuTarget);
+    };
+
+    document.getElementById('delete-file-btn').onclick = () => {
+        hideContextMenu();
+        deleteFile(contextMenuTarget);
+    };
+}
+
+function hideContextMenu() {
+    if (contextMenu) {
+        contextMenu.style.display = 'none';
+    }
+}
+
+function getBasename(path) {
+    if (!path) return '';
+    return path.split(/[\\/]/).pop();
+}
+
+function getParentPath(path) {
+    if (!path) return null;
+    const parts = path.split(/[\\/]/);
+    if (parts.length > 1) {
+        parts.pop();
+        return parts.join('/');
+    }
+    return null;
+}
+
+function goBack() {
+    if (currentExplorerPath && currentProject && currentExplorerPath !== currentProject) {
+        const parentDir = getParentPath(currentExplorerPath);
+        if (parentDir && parentDir.length >= currentProject.length) {
+            loadFileExplorer(parentDir);
+        } else {
+            loadFileExplorer(currentProject);
+        }
+    }
+}
+
+async function renameFile(filePath) {
+
+    const fileItem = document.querySelector(`[data-path="${filePath}"]`);
+    if (!fileItem) return;
+
+    const currentName = getBasename(filePath);
+    const nameSpan = fileItem.querySelector('span');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.style.width = '100%';
+
+    nameSpan.replaceWith(input);
+    input.focus();
+    input.select();
+
+    const handleRename = async () => {
+        const newName = input.value.trim();
+        input.replaceWith(nameSpan); // Restore original span
+
+        if (newName && newName !== currentName) {
+            const result = await window.electronAPI.renameFile(filePath, newName);
+            if (result.success) {
+                updateStatus(`File renamed to ${newName}`);
+                refreshFileExplorer();
+            } else {
+                updateStatus(`Error renaming file: ${result.error}`);
+            }
+        } else {
+            refreshFileExplorer(); // Restore if name is unchanged or empty
+        }
+    };
+
+    input.addEventListener('blur', handleRename);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            handleRename();
+        } else if (e.key === 'Escape') {
+            input.replaceWith(nameSpan);
+            refreshFileExplorer(); // Restore on escape
+        }
+    });
+}
+
+async function deleteFile(filePath) {
+    if (confirm(`Are you sure you want to delete ${getBasename(filePath)}?`)) {
+        const result = await window.electronAPI.deleteFile(filePath);
+        if (result.success) {
+            updateStatus('File deleted');
+            refreshFileExplorer();
+        } else {
+            updateStatus(`Error deleting file: ${result.error}`);
+        }
+    }
 }
 
 async function openFileFromExplorer(filePath) {
