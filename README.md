@@ -1,1 +1,1 @@
-IDE
+Electron IDE
