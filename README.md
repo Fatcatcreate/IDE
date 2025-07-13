@@ -1,1 +1,1 @@
-Electron IDE for 
+Electron IDE for python
