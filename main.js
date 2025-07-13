@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 
 let mainWindow;
 
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
