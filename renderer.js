@@ -2,8 +2,10 @@ let currentProject = null;
 let currentExplorerPath = null;
 let fileExplorerData = [];
 // Add these variables at the top of renderer.js
+
 let contextMenu = null;
 let contextMenuTarget = null;
+
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
