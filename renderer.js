@@ -585,83 +585,9 @@ function focusEditor() {
     }
 }
 
-// Status bar updates
-function updateStatus(message) {
-    const statusElement = document.getElementById('status-text');
-    if (statusElement) {
-        statusElement.textContent = message;
-        
-        // Auto-clear status after 5 seconds
-        setTimeout(() => {
-            if (statusElement.textContent === message) {
-                statusElement.textContent = 'Ready';
-            }
-        }, 5000);
-    }
-}
 
-// Terminal functionality
-function showTerminal() {
-    const terminalPanel = document.getElementById('terminal-panel');
-    if (terminalPanel) {
-        terminalPanel.style.display = 'block';
-    }
-}
 
-function hideTerminal() {
-    const terminalPanel = document.getElementById('terminal-panel');
-    if (terminalPanel) {
-        terminalPanel.style.display = 'none';
-    }
-}
 
-function toggleTerminal() {
-    const terminalPanel = document.getElementById('terminal-panel');
-    if (terminalPanel) {
-        terminalPanel.style.display = terminalPanel.style.display === 'none' ? 'block' : 'none';
-    }
-}
-
-// Search functionality
-function searchInFiles(query) {
-    if (!currentProject || !query.trim()) {
-        return;
-    }
-    
-    // This would implement file search functionality
-    // For now, just update status
-    updateStatus(`Searching for: ${query}`);
-}
-
-// Theme management
-function toggleTheme() {
-    const body = document.body;
-    const currentTheme = body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    body.setAttribute('data-theme', newTheme);
-    
-    // Update Monaco editor theme if available
-    if (window.editorAPI && window.editorAPI.setTheme) {
-        window.editorAPI.setTheme(newTheme);
-    }
-    
-    // Save theme preference (removed localStorage usage)
-    updateStatus(`Switched to ${newTheme} theme`);
-}
-
-// Initialize theme on startup
-function initializeTheme() {
-    const defaultTheme = 'dark';
-    document.body.setAttribute('data-theme', defaultTheme);
-    
-    // Set editor theme after it's initialized
-    setTimeout(() => {
-        if (window.editorAPI && window.editorAPI.setTheme) {
-            window.editorAPI.setTheme(defaultTheme);
-        }
-    }, 1000);
-}
 
 // Export functions for use in other modules
 window.rendererAPI = {
@@ -673,9 +599,5 @@ window.rendererAPI = {
     clearOutput,
     clearProblems,
     switchToTab,
-    toggleTerminal,
-    toggleTheme,
-    updateStatus,
-    openFolder,
-    searchInFiles
+    openFolder
 };
