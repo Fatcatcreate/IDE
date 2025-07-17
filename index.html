@@ -223,10 +223,10 @@
             border-top: 1px solid #3c3c3c;
             display: flex;
             flex-direction: column;
-            min-height: 0;
-            max-height: 50%;
-            flex-shrink: 0;
-            height: 200px; /* Add this */
+            flex: 1;
+            min-height: 100px;
+            max-height: 80%;
+            overflow: hidden;
         }
 
         .panel-tabs {
@@ -262,6 +262,7 @@
             font-family: 'Courier New', monospace;
             font-size: 12px;
             line-height: 1.4;
+            min-height: 0;
         }
 
         .output-line {
@@ -376,12 +377,13 @@
             font-family: 'Courier New', monospace;
             font-size: 12px;
             line-height: 1.4;
-            margin-bottom: 10px;
-            max-height: 120px;
+            min-height: 0;
         }
 
         .terminal-input-container {
             display: flex;
+            flex-shrink: 0;
+            padding-top: 10px;
         }
 
         #terminal-input {
@@ -444,11 +446,6 @@
         .editor-wrapper {
             min-height: 100px;
             flex-shrink: 0;
-        }
-
-        .bottom-panel {
-            min-height: 100px;
-            max-height: 50%;
         }
 
 
@@ -529,7 +526,9 @@
                                 <div class="terminal-header">
                                     <button id="new-terminal">New Terminal</button>
                                     <button id="kill-terminal">Kill Terminal</button>
+
                                 </div>
+
                                 <div class="terminal-output" id="terminal-output"></div>
                                 <div class="terminal-input-container">
                                     <input type="text" id="terminal-input" placeholder="Enter command..." />

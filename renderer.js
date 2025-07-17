@@ -596,12 +596,13 @@ function switchToTab(tabName) {
     // Hide all panels
     document.getElementById('panel-output').classList.add('hidden');
     document.getElementById('panel-problems').classList.add('hidden');
-    
+    document.getElementById('panel-terminal').classList.add('hidden');
+
     // Remove active class from all tabs
     document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    
+
     // Show selected panel and activate tab
     document.getElementById(`panel-${tabName}`).classList.remove('hidden');
     document.getElementById(`tab-${tabName}`).classList.add('active');
