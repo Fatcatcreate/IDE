@@ -1,6 +1,7 @@
 let currentProject = null;
 let currentExplorerPath = null;
 let fileExplorerData = [];
+let currentTerminalId = null;
 // Add these variables at the top of renderer.js
 
 let contextMenu = null;
@@ -31,6 +32,9 @@ function setupEventListeners() {
     document.getElementById('clear-output').addEventListener('click', clearOutput);
     document.getElementById('open-folder').addEventListener('click', openFolder);
     document.getElementById('back-button').addEventListener('click', goBack);
+    document.getElementById('new-terminal').addEventListener('click', createNewTerminal);
+    document.getElementById('kill-terminal').addEventListener('click', killCurrentTerminal);
+    document.getElementById('terminal-input').addEventListener('keydown', handleTerminalInput);
     
     // Keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -55,6 +59,25 @@ function setupMenuEventListeners() {
         window.electronAPI.onFileSaved((event, data) => {
             handleFileSaved(data.filePath, data.dirPath);
         });
+
+        window.electronAPI.onTerminalOutput((event, data) => {
+            if (data.id === currentTerminalId) {
+                appendToTerminal(data.data, 'output');
+            }
+        });
+        
+        window.electronAPI.onTerminalError((event, data) => {
+            if (data.id === currentTerminalId) {
+                appendToTerminal(data.data, 'error');
+            }
+        });
+        
+        window.electronAPI.onTerminalClosed((event, data) => {
+            if (data.id === currentTerminalId) {
+                appendToTerminal(`Terminal closed (exit code: ${data.code})\n`, 'info');
+                currentTerminalId = null;
+            }
+        });
     }
 }
 
@@ -78,6 +101,7 @@ async function refreshFileExplorer() {
 function setupTabSwitching() {
     document.getElementById('tab-output').addEventListener('click', () => switchToTab('output'));
     document.getElementById('tab-problems').addEventListener('click', () => switchToTab('problems'));
+    document.getElementById('tab-terminal').addEventListener('click', () => switchToTab('terminal'));
 }
 
 function handleKeyboardShortcuts(event) {
@@ -92,6 +116,12 @@ function handleKeyboardShortcuts(event) {
                 event.preventDefault();
                 // File opening is handled by main process
                 break;
+            case '`':
+              if (event.ctrlKey) {
+                event.preventDefault();
+                switchToTab('terminal');
+              }
+              break;
         }
     }
     
@@ -548,6 +578,44 @@ function switchToTab(tabName) {
     // Show selected panel and activate tab
     document.getElementById(`panel-${tabName}`).classList.remove('hidden');
     document.getElementById(`tab-${tabName}`).classList.add('active');
+}
+
+async function createNewTerminal() {
+    const shell = process.platform === 'win32' ? 'cmd' : 'bash';
+    const cwd = currentProject || process.cwd();
+    
+    const result = await window.electronAPI.spawnTerminal(shell, [], cwd);
+    if (result.success) {
+        currentTerminalId = result.terminalId;
+        appendToTerminal(`Terminal started (${result.terminalId})\n`, 'info');
+        updateStatus('Terminal started');
+    }
+}
+
+async function killCurrentTerminal() {
+    if (currentTerminalId) {
+        await window.electronAPI.killTerminal(currentTerminalId);
+        currentTerminalId = null;
+        updateStatus('Terminal killed');
+    }
+}
+
+async function handleTerminalInput(event) {
+    if (event.key === 'Enter' && currentTerminalId) {
+        const input = event.target.value + '\n';
+        await window.electronAPI.terminalInput(currentTerminalId, input);
+        appendToTerminal(`> ${event.target.value}\n`, 'command');
+        event.target.value = '';
+    }
+}
+
+function appendToTerminal(text, type = 'output') {
+    const terminalElement = document.getElementById('terminal-output');
+    const line = document.createElement('div');
+    line.className = `output-line ${type}`;
+    line.textContent = text;
+    terminalElement.appendChild(line);
+    terminalElement.scrollTop = terminalElement.scrollHeight;
 }
 
 // Editor interface functions

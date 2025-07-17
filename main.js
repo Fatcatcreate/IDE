@@ -410,6 +410,56 @@ ipcMain.handle('lint-python', async (event, { code, path: filePath }) => {
 });
 
 
+
+// Terminal IPC handlers
+ipcMain.handle('spawn-terminal', async (event, { command, args, cwd }) => {
+  const { spawn } = require('child_process');
+  const terminal = spawn(command, args || [], { 
+    cwd: cwd || process.cwd(),
+    shell: true 
+  });
+  
+  const terminalId = Date.now().toString();
+  
+  // Store terminal reference
+  global.terminals = global.terminals || {};
+  global.terminals[terminalId] = terminal;
+  
+  terminal.stdout.on('data', (data) => {
+    mainWindow.webContents.send('terminal-output', { id: terminalId, data: data.toString() });
+  });
+  
+  terminal.stderr.on('data', (data) => {
+    mainWindow.webContents.send('terminal-error', { id: terminalId, data: data.toString() });
+  });
+  
+  terminal.on('close', (code) => {
+    mainWindow.webContents.send('terminal-closed', { id: terminalId, code });
+    delete global.terminals[terminalId];
+  });
+  
+  return { success: true, terminalId };
+});
+
+ipcMain.handle('terminal-input', async (event, { terminalId, input }) => {
+  const terminal = global.terminals?.[terminalId];
+  if (terminal) {
+    terminal.stdin.write(input);
+    return { success: true };
+  }
+  return { success: false, error: 'Terminal not found' };
+});
+
+ipcMain.handle('kill-terminal', async (event, terminalId) => {
+  const terminal = global.terminals?.[terminalId];
+  if (terminal) {
+    terminal.kill();
+    delete global.terminals[terminalId];
+    return { success: true };
+  }
+  return { success: false };
+});
+
 // App event handlers
 app.whenReady().then(createWindow);
 

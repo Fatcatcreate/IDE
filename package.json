@@ -23,7 +23,8 @@
   },
   "dependencies": {
     "fs-extra": "^11.3.0",
-    "monaco-editor": "^0.44.0"
+    "monaco-editor": "^0.44.0",
+    "node-pty": "^1.0.0"
   },
   "build": {
     "productName": "Python IDE",

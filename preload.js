@@ -20,6 +20,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runPython: (code, path) => ipcRenderer.invoke('run-python', { code, path }),
   lintPython: (code, path) => ipcRenderer.invoke('lint-python', { code, path }),
   
+  // Terminal API
+  spawnTerminal: (command, args, cwd) => ipcRenderer.invoke('spawn-terminal', { command, args, cwd }),
+  terminalInput: (terminalId, input) => ipcRenderer.invoke('terminal-input', { terminalId, input }),
+  killTerminal: (terminalId) => ipcRenderer.invoke('kill-terminal', terminalId),
+  onTerminalOutput: (callback) => ipcRenderer.on('terminal-output', callback),
+  onTerminalError: (callback) => ipcRenderer.on('terminal-error', callback),
+  onTerminalClosed: (callback) => ipcRenderer.on('terminal-closed', callback),
+
   // Menu event listeners
   onNewFile: (callback) => ipcRenderer.on('menu-new-file', callback),
   onSaveFile: (callback) => ipcRenderer.on('menu-save-file', callback),
