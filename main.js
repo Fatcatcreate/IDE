@@ -2,8 +2,11 @@ const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
 const { spawn } = require('child_process');
+const pty = require('node-pty');
+const os = require('os');
 
 let mainWindow;
+global.terminals = {};
 
 
 function createWindow() {
@@ -412,52 +415,48 @@ ipcMain.handle('lint-python', async (event, { code, path: filePath }) => {
 
 
 // Terminal IPC handlers
-ipcMain.handle('spawn-terminal', async (event, { command, args, cwd }) => {
-  const { spawn } = require('child_process');
-  const terminal = spawn(command, args || [], { 
-    cwd: cwd || process.cwd(),
-    shell: true 
-  });
-  
-  const terminalId = Date.now().toString();
-  
-  // Store terminal reference
-  global.terminals = global.terminals || {};
-  global.terminals[terminalId] = terminal;
-  
-  terminal.stdout.on('data', (data) => {
-    mainWindow.webContents.send('terminal-output', { id: terminalId, data: data.toString() });
-  });
-  
-  terminal.stderr.on('data', (data) => {
-    mainWindow.webContents.send('terminal-error', { id: terminalId, data: data.toString() });
-  });
-  
-  terminal.on('close', (code) => {
-    mainWindow.webContents.send('terminal-closed', { id: terminalId, code });
-    delete global.terminals[terminalId];
-  });
-  
-  return { success: true, terminalId };
+ipcMain.handle('spawn-terminal', (event, { cwd }) => {
+    const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+    const terminal = pty.spawn(shell, [], {
+        name: 'xterm-color',
+        cols: 80,
+        rows: 30,
+        cwd: cwd || process.cwd(),
+        env: process.env
+    });
+
+    const terminalId = terminal.pid.toString();
+    global.terminals[terminalId] = terminal;
+
+    terminal.on('data', (data) => {
+        mainWindow.webContents.send('terminal-output', { id: terminalId, data });
+    });
+
+    terminal.on('exit', (code, signal) => {
+        mainWindow.webContents.send('terminal-closed', { id: terminalId, code, signal });
+        delete global.terminals[terminalId];
+    });
+
+    return { success: true, terminalId };
 });
 
-ipcMain.handle('terminal-input', async (event, { terminalId, input }) => {
-  const terminal = global.terminals?.[terminalId];
-  if (terminal) {
-    terminal.stdin.write(input);
-    return { success: true };
-  }
-  return { success: false, error: 'Terminal not found' };
+ipcMain.handle('terminal-input', (event, { terminalId, input }) => {
+    const terminal = global.terminals[terminalId];
+    if (terminal) {
+        terminal.write(input);
+        return { success: true };
+    }
+    return { success: false, error: 'Terminal not found' };
 });
 
-ipcMain.handle('kill-terminal', async (event, terminalId) => {
-  const terminal = global.terminals?.[terminalId];
-  if (terminal) {
-    terminal.kill();
-    delete global.terminals[terminalId];
-    return { success: true };
-  }
-  return { success: false };
+ipcMain.handle('kill-terminal', (event, terminalId) => {
+    const terminal = global.terminals[terminalId];
+    if (terminal) {
+        terminal.kill();
+        delete global.terminals[terminalId];
+        return { success: true };
+    }
+    return { success: false, error: 'Terminal not found' };
 });
 
 // App event handlers

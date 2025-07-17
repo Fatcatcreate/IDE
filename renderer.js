@@ -79,7 +79,32 @@ function setupMenuEventListeners() {
             }
         });
     }
+        // Add terminal input event listener
+    const terminalInput = document.getElementById('terminal-input');
+    if (terminalInput) {
+        terminalInput.addEventListener('keydown', handleTerminalInput);
+    }
 }
+
+
+// Add this right after the setupMenuEventListeners() function
+console.log('Setting up terminal input listener...');
+const terminalInput = document.getElementById('terminal-input');
+if (terminalInput) {
+    console.log('Terminal input element found');
+    terminalInput.addEventListener('keydown', (event) => {
+        console.log('Key pressed:', event.key);
+        if (event.key === 'Enter') {
+            console.log('Enter pressed, currentTerminalId:', currentTerminalId);
+            handleTerminalInput(event);
+        }
+    });
+} else {
+    console.log('Terminal input element NOT found');
+}
+
+
+
 
 // ADD THIS NEW FUNCTION to handle file saved event
 async function handleFileSaved(filePath, dirPath) {
@@ -580,17 +605,34 @@ function switchToTab(tabName) {
     document.getElementById(`tab-${tabName}`).classList.add('active');
 }
 
+
+
+
 async function createNewTerminal() {
-    const shell = process.platform === 'win32' ? 'cmd' : 'bash';
-    const cwd = currentProject || process.cwd();
-    
-    const result = await window.electronAPI.spawnTerminal(shell, [], cwd);
-    if (result.success) {
-        currentTerminalId = result.terminalId;
-        appendToTerminal(`Terminal started (${result.terminalId})\n`, 'info');
-        updateStatus('Terminal started');
+    console.log('createNewTerminal called');
+    const cwd = currentProject || '.';
+    console.log('Using cwd:', cwd);
+
+    try {
+        const result = await window.electronAPI.spawnTerminal({ cwd });
+        console.log('spawnTerminal result:', result);
+        if (result.success) {
+            currentTerminalId = result.terminalId;
+            console.log('Terminal created with ID:', currentTerminalId);
+            switchToTab('terminal');
+            document.getElementById('terminal-output').innerHTML = '';
+            appendToTerminal(`Terminal started (ID: ${currentTerminalId})\n`);
+            updateStatus('Terminal started');
+        } else {
+            console.error('Failed to create terminal:', result);
+        }
+    } catch (error) {
+        console.error('Error creating terminal:', error);
     }
 }
+
+
+
 
 async function killCurrentTerminal() {
     if (currentTerminalId) {
@@ -601,21 +643,25 @@ async function killCurrentTerminal() {
 }
 
 async function handleTerminalInput(event) {
+    console.log('handleTerminalInput called');
     if (event.key === 'Enter' && currentTerminalId) {
+        console.log('Processing Enter key with terminal ID:', currentTerminalId);
         const input = event.target.value + '\n';
-        await window.electronAPI.terminalInput(currentTerminalId, input);
-        appendToTerminal(`> ${event.target.value}\n`, 'command');
+        console.log('Sending input:', input);
+        const result = await window.electronAPI.terminalInput({ terminalId: currentTerminalId, input });
+        console.log('Terminal input result:', result);
         event.target.value = '';
+    } else {
+        console.log('Not processing - key:', event.key, 'terminalId:', currentTerminalId);
     }
 }
 
-function appendToTerminal(text, type = 'output') {
+function appendToTerminal(data) {
     const terminalElement = document.getElementById('terminal-output');
-    const line = document.createElement('div');
-    line.className = `output-line ${type}`;
-    line.textContent = text;
-    terminalElement.appendChild(line);
-    terminalElement.scrollTop = terminalElement.scrollHeight;
+    if (terminalElement) {
+        terminalElement.innerText += data;
+        terminalElement.scrollTop = terminalElement.scrollHeight;
+    }
 }
 
 // Editor interface functions

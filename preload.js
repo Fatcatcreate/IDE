@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Terminal API
   spawnTerminal: (command, args, cwd) => ipcRenderer.invoke('spawn-terminal', { command, args, cwd }),
-  terminalInput: (terminalId, input) => ipcRenderer.invoke('terminal-input', { terminalId, input }),
+  terminalInput: (data) => ipcRenderer.invoke('terminal-input', data),
   killTerminal: (terminalId) => ipcRenderer.invoke('kill-terminal', terminalId),
   onTerminalOutput: (callback) => ipcRenderer.on('terminal-output', callback),
   onTerminalError: (callback) => ipcRenderer.on('terminal-error', callback),
