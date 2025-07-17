@@ -417,26 +417,30 @@ ipcMain.handle('lint-python', async (event, { code, path: filePath }) => {
 // Terminal IPC handlers
 ipcMain.handle('spawn-terminal', (event, { cwd }) => {
     const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
-    const terminal = pty.spawn(shell, [], {
+    const args = os.platform() === 'win32' ? [] : ['--login'];
+    const terminal = pty.spawn(shell, args, {
         name: 'xterm-color',
         cols: 80,
         rows: 30,
         cwd: cwd || process.cwd(),
-        env: process.env
+        env: {
+            ...process.env,
+            PS1: '\\u@\\h:\\w$ '
+        }
     });
-
+    
     const terminalId = terminal.pid.toString();
     global.terminals[terminalId] = terminal;
-
+    
     terminal.on('data', (data) => {
         mainWindow.webContents.send('terminal-output', { id: terminalId, data });
     });
-
+    
     terminal.on('exit', (code, signal) => {
         mainWindow.webContents.send('terminal-closed', { id: terminalId, code, signal });
         delete global.terminals[terminalId];
     });
-
+    
     return { success: true, terminalId };
 });
 
