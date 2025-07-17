@@ -13,9 +13,11 @@ document.addEventListener('DOMContentLoaded', function() {
     contextMenu = document.getElementById('context-menu');
     setupEventListeners();
     setupMenuEventListeners();
+    initializeResizablePanels();
     setupTabSwitching();
     initializeTheme();
     console.log('Python IDE initialized');
+
 
     // Hide context menu on click outside
     window.addEventListener('click', () => {
@@ -698,6 +700,68 @@ function markAsSaved() {
 function focusEditor() {
     if (window.editorAPI) {
         window.editorAPI.focus();
+    }
+}
+
+
+
+function initializeResizablePanels() {
+    let isResizing = false;
+    let currentHandle = null;
+    let startPos = 0;
+    let startSize = 0;
+    let targetElement = null;
+
+    document.querySelectorAll('.resize-handle').forEach(handle => {
+        handle.addEventListener('mousedown', initResize);
+    });
+
+    function initResize(e) {
+        isResizing = true;
+        currentHandle = e.target;
+        console.log('Resize started', currentHandle.className);
+        
+        if (currentHandle.classList.contains('vertical-handle')) {
+            startPos = e.clientX;
+            targetElement = currentHandle.previousElementSibling;
+            startSize = targetElement.offsetWidth;
+        } else {
+            startPos = e.clientY;
+            targetElement = currentHandle.previousElementSibling;
+            startSize = targetElement.offsetHeight;
+        }
+        
+        document.addEventListener('mousemove', resize);
+        document.addEventListener('mouseup', stopResize);
+        e.preventDefault();
+    }
+
+    function resize(e) {
+        if (!isResizing) return;
+        console.log('Resizing', targetElement.style.width, targetElement.style.height);
+        
+        if (currentHandle.classList.contains('vertical-handle')) {
+            const newWidth = startSize + (e.clientX - startPos);
+            const clampedWidth = Math.max(200, Math.min(newWidth, window.innerWidth * 0.6));
+            targetElement.style.width = clampedWidth + 'px';
+            targetElement.style.flexBasis = clampedWidth + 'px';
+        } else {
+            const newHeight = startSize + (e.clientY - startPos);
+            const containerHeight = targetElement.parentElement.offsetHeight;
+            const clampedHeight = Math.max(100, Math.min(newHeight, containerHeight * 0.7));
+            targetElement.style.height = clampedHeight + 'px';
+            targetElement.style.flexBasis = clampedHeight + 'px';
+        }
+
+
+    }
+
+    function stopResize() {
+        isResizing = false;
+        currentHandle = null;
+        targetElement = null;
+        document.removeEventListener('mousemove', resize);
+        document.removeEventListener('mouseup', stopResize);
     }
 }
 
