@@ -454,7 +454,6 @@ ipcMain.handle('terminal-input', (event, { terminalId, input }) => {
 });
 
 
-
 // App event handlers
 app.whenReady().then(createWindow);
 
