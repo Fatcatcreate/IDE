@@ -35,7 +35,6 @@ function setupEventListeners() {
     document.getElementById('open-folder').addEventListener('click', openFolder);
     document.getElementById('back-button').addEventListener('click', goBack);
     document.getElementById('new-terminal').addEventListener('click', createNewTerminal);
-    document.getElementById('kill-terminal').addEventListener('click', killCurrentTerminal);
     document.getElementById('terminal-input').addEventListener('keydown', handleTerminalInput);
     
     // Keyboard shortcuts
@@ -637,13 +636,7 @@ async function createNewTerminal() {
 
 
 
-async function killCurrentTerminal() {
-    if (currentTerminalId) {
-        await window.electronAPI.killTerminal(currentTerminalId);
-        currentTerminalId = null;
-        updateStatus('Terminal killed');
-    }
-}
+
 
 async function handleTerminalInput(event) {
     console.log('handleTerminalInput called');

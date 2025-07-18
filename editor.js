@@ -26,7 +26,7 @@ function setupMonaco() {
         editor = monaco.editor.create(document.getElementById('editor'), {
             value: `# Welcome to Python IDE
 # Write your Python code here
-# Press New terminal in Terminal tab to start terminal
+# Press New terminal in the Terminal tab to start terminal
 # You can resize the panel sizes by dragging the borders
 
 def main():

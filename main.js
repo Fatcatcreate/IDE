@@ -453,15 +453,7 @@ ipcMain.handle('terminal-input', (event, { terminalId, input }) => {
     return { success: false, error: 'Terminal not found' };
 });
 
-ipcMain.handle('kill-terminal', (event, terminalId) => {
-    const terminal = global.terminals[terminalId];
-    if (terminal) {
-        terminal.kill();
-        delete global.terminals[terminalId];
-        return { success: true };
-    }
-    return { success: false, error: 'Terminal not found' };
-});
+
 
 // App event handlers
 app.whenReady().then(createWindow);
